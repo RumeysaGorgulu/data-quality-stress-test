@@ -1,0 +1,30 @@
+# Results: Adult census (group = female)
+
+Seeds: 3 | Severities: 0, 0.1, 0.2, 0.3, 0.4, 0.5
+
+## Change from clean training data to the worst severity
+| corruption        | setup                     |   acc_clean |   acc_worst |   tpr_gap_clean |   tpr_gap_worst |   acc_change |   gap_change |
+|:------------------|:--------------------------|------------:|------------:|----------------:|----------------:|-------------:|-------------:|
+| label_noise       | boosting / native         |       0.869 |       0.538 |           0.066 |          -0.036 |       -0.331 |       -0.102 |
+| label_noise       | logistic / mean           |       0.848 |       0.509 |           0.077 |          -0.024 |       -0.339 |       -0.1   |
+| label_noise_group | boosting / native         |       0.869 |       0.86  |           0.066 |           0.404 |       -0.009 |        0.339 |
+| label_noise_group | logistic / mean           |       0.848 |       0.839 |           0.077 |           0.41  |       -0.009 |        0.333 |
+| missing_group     | boosting / native         |       0.869 |       0.867 |           0.066 |           0.133 |       -0.002 |        0.067 |
+| missing_group     | logistic / drop_rows      |       0.848 |       0.846 |           0.077 |           0.176 |       -0.002 |        0.099 |
+| missing_group     | logistic / mean           |       0.848 |       0.847 |           0.077 |           0.132 |       -0.001 |        0.056 |
+| missing_group     | logistic / mean+indicator |       0.848 |       0.846 |           0.077 |          -0.02  |       -0.002 |       -0.096 |
+| missing_random    | boosting / native         |       0.869 |       0.866 |           0.066 |           0.078 |       -0.003 |        0.012 |
+| missing_random    | logistic / drop_rows      |       0.848 |       0.84  |           0.077 |           0.012 |       -0.008 |       -0.065 |
+| missing_random    | logistic / mean           |       0.848 |       0.848 |           0.077 |           0.1   |       -0     |        0.023 |
+| missing_random    | logistic / mean+indicator |       0.848 |       0.848 |           0.077 |           0.096 |       -0     |        0.019 |
+| selection_bias    | boosting / native         |       0.869 |       0.867 |           0.066 |           0.179 |       -0.002 |        0.114 |
+| selection_bias    | logistic / mean           |       0.848 |       0.846 |           0.077 |           0.223 |       -0.002 |        0.146 |
+
+## Headline
+- Largest accuracy drop: **Random label noise** with logistic / mean (-0.339).
+- Largest fairness harm (TPR gap increase): **Minority positives mislabeled** with boosting / native (+0.339).
+- Compare the two: corruptions that barely move accuracy can still widen the gap between groups.
+
+![Accuracy](fig_accuracy.png)
+
+![TPR gap](fig_tpr_gap.png)
