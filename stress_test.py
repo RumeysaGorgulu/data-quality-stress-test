@@ -11,6 +11,8 @@ Corruptions (each at increasing severity):
   missing_group    values go missing only for the minority group (missingness tied to group)
   label_noise      a random share of training labels is flipped
   label_noise_group  positive labels of the minority group are flipped to negative
+  label_noise_matched  the SAME NUMBER of labels as label_noise_group, flipped at random
+                       (control: separates "how many labels are wrong" from "which ones")
   selection_bias   positive examples of the minority group are under-sampled
 
 Inspired by work on data errors in ML pipelines (e.g., Zhu, ..., Salimi, 2025,
@@ -39,7 +41,8 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 SEVERITIES = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]
-CORRUPTIONS = ["missing_random", "missing_group", "label_noise", "label_noise_group", "selection_bias"]
+CORRUPTIONS = ["missing_random", "missing_group", "label_noise", "label_noise_group",
+               "label_noise_matched", "selection_bias"]
 
 
 # ---------------------------------------------------------------------------
@@ -94,6 +97,12 @@ def corrupt(X, y, g, kind, severity, rng):
         target = (g == 1) & (y == 1)
         flip = target & (rng.random(len(y)) < severity)
         y[flip] = 0
+
+    elif kind == "label_noise_matched":
+        # same expected number of flips as label_noise_group, spread over all rows and classes
+        k = int(round(severity * ((g == 1) & (y == 1)).sum()))
+        flip = rng.choice(len(y), size=k, replace=False)
+        y[flip] = 1 - y[flip]
 
     elif kind == "selection_bias":
         target = (g == 1) & (y == 1)
@@ -166,6 +175,14 @@ def main():
             for sev in SEVERITIES:
                 rng = np.random.default_rng(1000 * seed + int(sev * 100))
                 Xc, yc, gc = corrupt(X_tr, y_tr, g_tr, kind, sev, rng)
+                # How much of the training data was actually changed (comparable "dose")
+                if kind.startswith("missing"):
+                    num = Xc.select_dtypes(include="number")
+                    share_changed = float(num.isna().to_numpy().mean())
+                elif kind == "selection_bias":
+                    share_changed = 1 - len(yc) / len(y_tr)
+                else:
+                    share_changed = float((yc != y_tr).mean())
                 for model, imputation in SETUPS:
                     if not kind.startswith("missing") and imputation in ("mean+indicator", "drop_rows"):
                         # missing-data strategies only differ when values are missing
@@ -179,7 +196,8 @@ def main():
                     pipe = build_pipeline(X, model, imputation).fit(Xf, yf)
                     m = fairness_metrics(y_te, pipe.predict(X_te), g_te)
                     rows.append({"seed": seed, "corruption": kind, "severity": sev,
-                                 "setup": f"{model} / {imputation}", "n_train": len(yf), **m})
+                                 "setup": f"{model} / {imputation}", "n_train": len(yf),
+                                 "share_changed": share_changed, **m})
         print(f"  seed {seed + 1}/{args.seeds} done ({time.time() - start:.0f}s)")
 
     out = Path(args.outdir)

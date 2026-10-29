@@ -13,6 +13,7 @@ TITLES = {
     "missing_group": "Missing in minority group",
     "label_noise": "Random label noise",
     "label_noise_group": "Minority positives mislabeled",
+    "label_noise_matched": "Random noise, same # of flips",
     "selection_bias": "Minority positives under-sampled",
 }
 COLORS = {"logistic / mean": "#4C72B0", "logistic / mean+indicator": "#55A868",
@@ -27,14 +28,14 @@ def main():
     out = Path(args.outdir)
     res = pd.read_csv(args.inp)
     dataset = res["dataset"].iloc[0]
-    agg = (res.groupby(["corruption", "severity", "setup"])[["accuracy", "tpr_gap", "selection_gap", "n_train"]]
+    agg = (res.groupby(["corruption", "severity", "setup"])[["accuracy", "tpr_gap", "selection_gap", "n_train", "share_changed"]]
               .agg(["mean", "std"]).reset_index())
 
     for metric, ylabel, fname in [
         ("accuracy", "Accuracy on clean test set", "fig_accuracy.png"),
         ("tpr_gap", "TPR gap (majority − minority)", "fig_tpr_gap.png"),
     ]:
-        fig, axes = plt.subplots(1, 5, figsize=(17, 3.6), sharey=True)
+        fig, axes = plt.subplots(1, len(TITLES), figsize=(20, 3.6), sharey=True)
         for ax, kind in zip(axes, TITLES):
             sub = agg[agg["corruption"] == kind]
             for setup, d in sub.groupby("setup"):
@@ -55,12 +56,13 @@ def main():
         plt.close(fig)
 
     # Summary: change from clean (severity 0) to the worst level, per corruption and setup
-    m = res.groupby(["corruption", "severity", "setup"])[["accuracy", "tpr_gap"]].mean().reset_index()
+    m = res.groupby(["corruption", "severity", "setup"])[["accuracy", "tpr_gap", "share_changed"]].mean().reset_index()
     clean = m[m["severity"] == 0].set_index(["corruption", "setup"])
     worst = m[m["severity"] == m["severity"].max()].set_index(["corruption", "setup"])
     change = pd.DataFrame({
         "acc_clean": clean["accuracy"], "acc_worst": worst["accuracy"],
         "tpr_gap_clean": clean["tpr_gap"], "tpr_gap_worst": worst["tpr_gap"],
+        "share_changed_worst": worst["share_changed"],
     }).dropna()
     change["acc_change"] = change["acc_worst"] - change["acc_clean"]
     change["gap_change"] = change["tpr_gap_worst"] - change["tpr_gap_clean"]

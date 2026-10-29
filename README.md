@@ -14,9 +14,11 @@ Training data is corrupted in controlled ways; every model is evaluated on the s
 | Missing in minority group | Same missing budget, concentrated in the minority group |
 | Random label noise | A share of labels flipped |
 | Minority positives mislabeled | Positive labels in the minority group flipped to negative |
+| Random noise, same # of flips | **Control:** the same number of labels flipped as in the row above (in expectation), but chosen at random |
 | Minority positives under-sampled | Minority-group positive examples dropped (selection bias) |
 
-- **Severity:** 0% to 50% in steps of 10%
+- **Severity:** 0% to 50% in steps of 10% of the targeted rows. Because corruptions target different subsets, `results.csv` also records `share_changed`, the share of training labels, values or rows actually changed. At 50%, symmetric random label noise makes labels independent of the features, so chance-level accuracy there is expected by construction.
+- **Missing values** are inserted into numeric columns only; categorical columns are left intact.
 - **Setups:** logistic regression with mean imputation, mean imputation + missing indicator, or row deletion; and gradient boosting with native missing-value handling
 - **Metrics:** accuracy, and the **true-positive-rate gap** between groups (equal opportunity)
 - **Seeds:** 3 train/test splits; shaded bands in the figures show ± 1 SD
@@ -39,7 +41,7 @@ These come from `--dataset synthetic`, a simulated dataset, so they illustrate t
 ![TPR gap](results/synthetic/fig_tpr_gap.png)
 ![Accuracy](results/synthetic/fig_accuracy.png)
 
-**Main pattern:** mislabeling half of the minority group's positive cases cut logistic-regression accuracy by only about 5 points, but widened the TPR gap between groups by about 43 points. **Accuracy alone would hide the harm.** Random label noise showed the opposite pattern: a large accuracy drop with little change in the gap.
+**Main pattern:** mislabeling half of the minority group's positive cases (7.7% of all training labels) cut logistic-regression accuracy by about 5 points but widened the TPR gap between groups by about 43 points. **Flipping the same number of labels at random changed neither accuracy nor the gap.** So the harm comes from *which* labels are wrong, not *how many*, and accuracy alone would hide it.
 
 Other observations:
 - Dropping rows with any missing value was the worst strategy under random missingness (−12 points of accuracy at 50%); mean imputation was almost unaffected.
@@ -54,18 +56,20 @@ UCI Adult (n = 45,222 after removing incomplete rows; 25% earn > $50K). The grou
 
 **Change from clean training data to 50% corruption** (mean of 3 seeds):
 
-| Corruption | Setup | Accuracy change | TPR gap: clean → corrupted |
-|---|---|---|---|
-| Women's positive labels flipped | logistic / mean | −0.9 pts | 0.08 → **0.41** |
-| Women's positive labels flipped | boosting | −0.9 pts | 0.07 → **0.40** |
-| Women's positives under-sampled | logistic / mean | −0.2 pts | 0.08 → 0.22 |
-| Women's positives under-sampled | boosting | −0.2 pts | 0.07 → 0.18 |
-| Missing values concentrated in women | logistic / mean | −0.1 pts | 0.08 → 0.13 |
-| Missing values concentrated in women | logistic / row deletion | −0.2 pts | 0.08 → 0.18 |
-| Random label noise | logistic / mean | **−33.9 pts** | 0.08 → −0.02 |
-| Random missing values | all setups | ≤ −0.8 pts | small changes |
+| Corruption | Setup | Training labels/rows changed | Accuracy change | TPR gap: clean → corrupted |
+|---|---|---|---|---|
+| Women's positive labels flipped | logistic / mean | 1.8% | −0.9 pts | 0.08 → **0.41** |
+| Women's positive labels flipped | boosting | 1.8% | −0.9 pts | 0.07 → **0.40** |
+| **Same number of labels flipped at random** | logistic / mean | 1.8% | 0.0 pts | 0.08 → 0.08 |
+| **Same number of labels flipped at random** | boosting | 1.8% | −0.1 pts | 0.07 → 0.05 |
+| Women's positives under-sampled | logistic / mean | 1.8% of rows | −0.2 pts | 0.08 → 0.22 |
+| Women's positives under-sampled | boosting | 1.8% of rows | −0.2 pts | 0.07 → 0.18 |
+| Missing values concentrated in women | logistic / mean | 32% of numeric values | −0.1 pts | 0.08 → 0.13 |
+| Missing values concentrated in women | logistic / row deletion | 32% of numeric values | −0.2 pts | 0.08 → 0.18 |
+| Random label noise | logistic / mean | 50% | **−33.9 pts** | 0.08 → −0.02 |
+| Random missing values | all setups | 50% of numeric values | ≤ −0.8 pts | small changes |
 
-**Main pattern (replicates the simulated results on real data):** mislabeling half of the women's positive cases cost **less than 1 point of accuracy** but raised the TPR gap from about 0.07 to about 0.40. A model checked on accuracy alone would look fine while missing qualified women far more often than qualified men. Random label noise showed the opposite: a large accuracy drop with no added gap.
+**Main pattern (replicates the simulated results on real data):** flipping half of the women's positive labels changed only **1.8% of all training labels**. It cost **less than 1 point of accuracy** but raised the TPR gap from about 0.07 to about 0.40. **Flipping the same number of labels at random left both accuracy and the gap essentially unchanged.** So the harm comes from *which* labels are wrong, not *how many*. A model checked on accuracy alone would look fine while missing qualified women far more often than qualified men. Random label noise at 50% showed the opposite: a large accuracy drop with no added gap. At that level the labels carry no signal at all, so chance-level accuracy is expected.
 
 Other observations:
 - **Selection bias** (under-sampling women's positive cases) also widened the gap (+0.11 to +0.15) at almost no accuracy cost.
@@ -76,7 +80,7 @@ Other observations:
 ## Limitations
 
 - Corruptions are simple and random, not adversarial or realistic error patterns.
-- The group variable is excluded from the features; results may differ when it is included.
+- The group variable (sex) is excluded from the features, but `relationship` (Husband/Wife) and `marital-status` remain and are strong proxies for it. Excluding the group variable is therefore not enough to prevent group-dependent errors ("fairness through unawareness" fails), and this is what lets the model learn the corrupted pattern for women.
 - Only two model families and one fairness metric.
 - At high severity, group-concentrated missingness removes all numeric values for the minority group (its missing budget is capped at 100%), which is an extreme case.
 - Adult is a widely used but dated benchmark; Ding et al. (2021) recommend newer census-based datasets such as ACSIncome.
