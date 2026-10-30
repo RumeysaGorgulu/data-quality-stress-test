@@ -1,6 +1,5 @@
 """
 Data-Quality Stress Test
-========================
 
 How much do common training-data problems change an ML model's accuracy and
 fairness? We corrupt the *training* data in controlled ways, train models,
@@ -20,7 +19,6 @@ Inspired by work on data errors in ML pipelines (e.g., Zhu, ..., Salimi, 2025,
 small, independent study with simple, non-adversarial corruptions.
 
 Usage
------
     python stress_test.py --dataset adult        # UCI Adult census data (downloads via OpenML)
     python stress_test.py --dataset synthetic    # offline, simulated data
 """
@@ -45,9 +43,7 @@ CORRUPTIONS = ["missing_random", "missing_group", "label_noise", "label_noise_gr
                "label_noise_matched", "selection_bias"]
 
 
-# ---------------------------------------------------------------------------
 # Data
-# ---------------------------------------------------------------------------
 def load_adult():
     """UCI Adult: predict income > $50K. Group = sex (1 = female, the minority in this data)."""
     data = fetch_openml("adult", version=2, as_frame=True)
@@ -70,9 +66,7 @@ def load_synthetic(seed=0):
     return X, y, group, "Synthetic (group = simulated minority, 30%)"
 
 
-# ---------------------------------------------------------------------------
 # Corruptions (applied to TRAINING data only)
-# ---------------------------------------------------------------------------
 def corrupt(X, y, g, kind, severity, rng):
     X, y, g = X.copy(), y.copy(), g.copy()
     num_cols = X.select_dtypes(include="number").columns
@@ -112,9 +106,7 @@ def corrupt(X, y, g, kind, severity, rng):
     return X, y, g
 
 
-# ---------------------------------------------------------------------------
 # Models and missing-data strategies
-# ---------------------------------------------------------------------------
 def build_pipeline(X, model, imputation):
     num_cols = list(X.select_dtypes(include="number").columns)
     cat_cols = [c for c in X.columns if c not in num_cols]
@@ -153,9 +145,7 @@ def fairness_metrics(y_true, y_pred, g):
     }
 
 
-# ---------------------------------------------------------------------------
 # Experiment loop
-# ---------------------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", choices=["adult", "synthetic"], default="adult")
