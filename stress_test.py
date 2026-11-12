@@ -78,7 +78,9 @@ def corrupt(X, y, g, kind, severity, rng):
         X[num_cols] = X[num_cols].astype(float).mask(mask)
 
     elif kind == "missing_group":
-        # same overall missing budget as missing_random, concentrated in the minority group
+        # same overall missing budget as missing_random, concentrated in the minority group.
+        # The group's rate is capped at 100%, so above severity ≈ group share (0.32 in Adult)
+        # the actual budget is smaller than for missing_random (see share_changed).
         rate = min(1.0, severity * len(X) / max(1, g.sum()))
         mask = (rng.random((len(X), len(num_cols))) < rate) & (g[:, None] == 1)
         X[num_cols] = X[num_cols].astype(float).mask(mask)
