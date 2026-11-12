@@ -74,7 +74,7 @@ UCI Adult (n = 45,222 after removing incomplete rows; 25% earn > $50K). The grou
 Other observations:
 - **Selection bias** (under-sampling women's positive cases) also widened the gap (+0.11 to +0.15) at almost no accuracy cost.
 - **Group-concentrated missingness** widened the gap with mean imputation, row deletion and boosting. Row deletion was the worst (+0.10).
-- **Caution on the missing-indicator result:** with mean imputation plus missing indicators, the gap fell to about 0. This is not a fix. Because women are 32% of the data, at high severity all of their numeric values are missing, so the indicators effectively encode sex and let the model use group membership directly. When missingness is tied to a group, missing indicators can act as a proxy for that group.
+- **Caution on the missing-indicator result:** with mean imputation plus missing indicators, the gap fell to about 0. This is not a fix. At high severity, all of women's numeric values are missing in training, so the model learns the numeric features almost only from men and fits women through the indicators. The test set has no missing values, so all indicators are 0 at test time and women are scored with the men-trained model. The gap shrinks because women's training data stopped contributing, not because the model became fairer.
 - Unlike the simulated data, row deletion under random missingness cost little accuracy here (−0.8 pts).
 
 ## Limitations
